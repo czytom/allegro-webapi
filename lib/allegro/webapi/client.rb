@@ -12,6 +12,7 @@ module Allegro
 
 
       def password=(password)
+        @orig_password = password
         hash = Digest::SHA256.new.digest(password)
         @password = Base64.encode64(hash)
       end
@@ -20,6 +21,15 @@ module Allegro
         client.call(operation_name, locals)
       end
 
+      def login_plain
+        start_client
+        message =  { sysvar: 3, country_id: country_code, webapi_key: webapi_key}
+        response = client.call(:do_query_sys_status, message: message)
+        message =  {user_login: user_login, user_password: @orig_password, country_code: country_code, webapi_key: webapi_key, local_version: local_version}
+        response = client.call(:do_login, message: message)
+        set_plain_session_handle(response)
+        self
+      end
       def login
         start_client
         message =  {user_login: user_login, user_hash_password: password, country_code: country_code, webapi_key: webapi_key, local_version: local_version}
@@ -28,6 +38,9 @@ module Allegro
         self
       end
 
+      def set_plain_session_handle(login_response)
+        @session_handle = login_response.body[:do_login_response][:session_handle_part]
+      end
       def set_session_handle(login_response)
         @session_handle = login_response.body[:do_login_enc_response][:session_handle_part]
       end
